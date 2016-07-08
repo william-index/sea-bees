@@ -60,7 +60,7 @@ class ImageProcessor:
             file_content += line
 
         for img in data:
-            file_content += '  '+img[0]+'[] = {\n'
+            file_content += '  '+img[0]+'['+str(len(img[1]))+']['+str(len(img[1][0]))+'] = {\n'
 
             img_data = ''
             for row in img[1]:
