@@ -39,16 +39,14 @@ class ImageProcessor:
         image = image.convert("RGB")
 
         pixel_data = image.load()
-        image_array = []
+        image_array = [image.size[1]*image.size[0],image.size[0]]
         for y in xrange(image.size[1]):
-            row_array = []
             for x in xrange(image.size[0]):
                 try:
                     index = color_map.index(pixel_data[x, y])
                 except:
                     index = 0
-                row_array.append(index)
-            image_array.append(row_array)
+                image_array.append(index)
         return image_array
 
     def save_img_data(self, data):
@@ -60,13 +58,12 @@ class ImageProcessor:
             file_content += line
 
         for img in data:
-            file_content += '  '+img[0]+'['+str(len(img[1]))+']['+str(len(img[1][0]))+'] = {\n'
+            file_content += '\nint '+img[0]+'[] = \n'
 
             img_data = ''
-            for row in img[1]:
-                img_data +='    {'+str(row)[1:-1].replace(" ", "")+'},\n'
+            img_data ='    {'+str(img[1])[1:-1].replace(" ", "")+'},\n'
             file_content += img_data[:-2]
-            file_content += '\n  },\n'
+            file_content += ';'
         f.write(file_content[:-2]+';')
 
 imageProcessor = ImageProcessor()
