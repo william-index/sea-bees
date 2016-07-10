@@ -14,6 +14,8 @@
 #include <Adafruit_GFX.h>    // Core graphics library
 #include <Adafruit_ST7735.h> // Hardware-specific library
 #include <SPI.h>
+#include <EEPROM.h>
+
 
 
 // For the breakout, you can use any 2 or 3 pins
@@ -39,6 +41,13 @@ Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS,  TFT_DC, TFT_RST);
 // Global Variables
 //-----------------------------------------------------------
 #define arr_len( x )  ( sizeof( x ) / sizeof( *x ) )
+const int buttonPin1 = 5;
+const int buttonPin2 = 6;
+const int buttonPin3 = 12;
+int arrowLState = 0;
+int actionState = 0;
+int arrowRState = 0;
+int test = 0;
 
 void setup()
 {
@@ -47,28 +56,58 @@ void setup()
   //  tft.setRotation(2);
 
   tft.fillScreen(COLOR_BG); //fill TFT with black color.
+
+  //  sets inputs
+  pinMode(buttonPin1, INPUT);
+  pinMode(buttonPin2, INPUT);
+  pinMode(buttonPin3, INPUT);
+
+//  uint8_t read
+  test = EEPROM.read(0);
 }
 
 int frame = 0;
 void loop() {
-  tft.setCursor(0,80);
+  
   
   if (frame < 10) {
-    print_bee(jellybee1);
+    print_bee(get_bee(1));
+  } else if (frame < 20) {
+    print_bee(get_bee(2));
   } else {
-    print_bee(jellybee2);
+    print_bee(get_bee(3));
   }
 
   frame ++;
-  if (frame == 20) {
+  if (frame == 30) {
     frame = 0;
   }
+
+  //  Button test output
+  tft.setCursor(0,0);
+  tft.setTextSize(4);
+  tft.setTextColor(COLOR_BLUE,COLOR_BG);
+  arrowLState = digitalRead(buttonPin1);
+  actionState = digitalRead(buttonPin2);
+  arrowRState = digitalRead(buttonPin3);
+  tft.print(arrowLState);
+  tft.print(actionState);
+  tft.print(arrowRState);
+  tft.setTextSize(1);
+  if (actionState) {
+    test++;
+    EEPROM.write(0, test);
+  }
+  tft.setCursor(0,34);
+  tft.print("press:");
+  tft.print(test);
 }
 
-void print_bee(int bee[]) {
+void print_bee(int *bee) {
   int xOffset = (32 - bee[1])/2;
   int yOffset = (32 - bee[0]/bee[1])/2;
-  draw_matrix(bee, xOffset, 3);
+  draw_matrix(bee, xOffset, yOffset);
+  free(bee);
 }
 
 /**
@@ -88,9 +127,9 @@ void draw_matrix(int *img, int x, int y) {
   int row = img[1];
   
   for (int i = 2; i < px_cnt + 2; i++) {
-    if (img[i] != 0) {
+//    if (img[i] != 0) {
       tft.fillRect(cx, cy, 4, 4, colors[img[i]]);
-    }
+//    }
 
     // increase row/col    
     cx += 4;
