@@ -41,13 +41,32 @@ Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS,  TFT_DC, TFT_RST);
 // Global Variables
 //-----------------------------------------------------------
 #define arr_len( x )  ( sizeof( x ) / sizeof( *x ) )
+
+//globals
+int test = 0;
+
+//buttons
 const int buttonPin1 = 5;
 const int buttonPin2 = 6;
 const int buttonPin3 = 12;
-int arrowLState = 0;
-int actionState = 0;
-int arrowRState = 0;
-int test = 0;
+
+bool canPress[3] = {true,true,true};
+bool pressedBtns[3] = {false,false,false};
+bool btnstates[3];
+
+//animation
+int frame = 0;
+const long FRAME_RATE = 500; 
+const int MAX_FRAMES = 3;
+unsigned long previousMillis = 0; 
+
+//application states
+int state = 0;
+// 0 - start screen
+// 1 - plant view
+// 2 - bee view
+// 3 - bee selection
+// 4 - admin
 
 void setup()
 {
@@ -62,48 +81,129 @@ void setup()
   pinMode(buttonPin2, INPUT);
   pinMode(buttonPin3, INPUT);
 
-//  uint8_t read
-  test = EEPROM.read(0);
+  //  uint8_t read
+//  test = EEPROM.read(0);
 }
 
-int frame = 0;
+
+/**
+ * Main application loop
+ */
 void loop() {
-  
-  
-  if (frame < 10) {
-    print_bee(get_bee(1));
-  } else if (frame < 20) {
-    print_bee(get_bee(2));
+  btnPresses();
+  updateState();  
+  drawCurrentState();
+  updateFrames();
+}
+
+
+/**
+ * Routes to routines for drawing the current state
+ */
+void drawCurrentState() {
+  if (state == 4) {
+    drawDevState();
+  } else if (state == 2) {
+    drawBeeState();
+  }
+}
+
+/** 
+ * Progresses State based on button presses and previous states 
+ */
+void updateState() {  
+  int prevState = state;
+
+  if (btnstates[0] && btnstates[2]) {
+    state = 4;
   } else {
-    print_bee(get_bee(3));
+    state = 2;
   }
 
-  frame ++;
-  if (frame == 30) {
-    frame = 0;
+  if (state != prevState) {
+    tft.fillScreen(COLOR_BG);
   }
+}
 
+/**
+ * Draws various dev states to the screen, 
+ *  helpful for debugging
+ */
+void drawDevState() {
   //  Button test output
   tft.setCursor(0,0);
   tft.setTextSize(4);
   tft.setTextColor(COLOR_BLUE,COLOR_BG);
-  arrowLState = digitalRead(buttonPin1);
-  actionState = digitalRead(buttonPin2);
-  arrowRState = digitalRead(buttonPin3);
-  tft.print(arrowLState);
-  tft.print(actionState);
-  tft.print(arrowRState);
+  
   tft.setTextSize(1);
-  if (actionState) {
+
+  if (pressedBtns[1]) {
     test++;
-    EEPROM.write(0, test);
   }
   tft.setCursor(0,34);
   tft.print("press:");
   tft.print(test);
 }
 
-void print_bee(int *bee) {
+/**
+ * Handles Drawing the Bee State
+ */
+void drawBeeState() {
+  draw_matrix(leftArrow,1,15);
+  draw_matrix(rightArrow,28,15);
+  
+  if (frame < 1) {
+    print_bee(get_bee(1));
+  } else if (frame < 2) {
+    print_bee(get_bee(2));
+  } else {
+    print_bee(get_bee(3));
+  }
+}
+
+/**
+ * Updates current frame for animation timing by FRAME_RATE
+ */
+void updateFrames() {
+  unsigned long currentMillis = millis();
+  if (currentMillis - previousMillis >= FRAME_RATE) {
+    previousMillis = currentMillis;
+    
+    frame ++;
+    if (frame == MAX_FRAMES) {
+      frame = 0;
+    }
+  }
+}
+
+/**
+ * Handles settings states for putton presses
+ *  Tracks btnstates (if held down) and pressedBtns (one press)
+ */
+void btnPresses() {
+  pressedBtns[0] = false;
+  pressedBtns[1] = false;
+  pressedBtns[2] = false;
+  
+  btnstates[0] = digitalRead(buttonPin1);
+  btnstates[1] = digitalRead(buttonPin2);
+  btnstates[2] = digitalRead(buttonPin3);
+  
+  for (int i=0; i<3; i++) {
+    if (btnstates[i] && canPress[i]) {
+      canPress[i] = false;
+      if (!pressedBtns[i]) {
+        pressedBtns[i] = true;
+      }
+    } else if (!btnstates[i]) {
+      pressedBtns[i] = false;
+      canPress[i] = true;
+    }
+  }
+  //  EEPROM.write(loc, val);
+}
+
+void print_bee(char *bee) {
   int xOffset = (32 - bee[1])/2;
   int yOffset = (32 - bee[0]/bee[1])/2;
   draw_matrix(bee, xOffset, yOffset);
@@ -119,7 +219,7 @@ void print_bee(int *bee) {
  * @param {int} x Offset x in 4x4 units to start draw
  * @param {int} y Offset y in 4x4 units to start draw
  */
-void draw_matrix(int *img, int x, int y) {
+void draw_matrix(char *img, int x, int y) {
   int cx_o = x*4;
   int cx = x*4;
   int cy = y*4;
