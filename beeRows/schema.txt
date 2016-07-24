@@ -1,0 +1,4 @@
+{string} Bee Type
+{int} max Pollen
+{int} pollen to evolve
+{Array<char>} evolutions

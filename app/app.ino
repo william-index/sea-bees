@@ -7,7 +7,7 @@
 //-----------------------------------------------------------
 #include "color.h"
 #include "graphics.h"
-#include "bees.h"
+#include "Bee.h"
 
 // Hardware setup I dont understand
 //-----------------------------------------------------------
@@ -16,7 +16,6 @@
 #include <SPI.h>
 #include <EEPROM.h>
 #include <SD.h>
-
 
 
 // For the breakout, you can use any 2 or 3 pins
@@ -47,6 +46,8 @@ Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS,  TFT_DC, TFT_RST);
 
 //globals
 int test = 0;
+int pollenCounter = 0;
+const int pollenAddRate = 4;
 
 //buttons
 const int buttonPin1 = 5;
@@ -69,11 +70,10 @@ int bmp1[3];
 
 //application states
 int state = 0;
-// 0 - start screen
-// 1 - plant view
-// 2 - bee view
-// 3 - bee selection
-// 4 - admin
+int onBee = 0;
+
+
+Bee *bee[3];
 
 void setup()
 {
@@ -93,8 +93,39 @@ void setup()
     return;
   }
 
+  setBeeData();
+    //updateFrames();
+  bee[0] = new Bee(2);
+  bee[1] = new Bee(-1);
+  bee[2] = new Bee(-1);
   //  uint8_t read
 //  test = EEPROM.read(0);
+}
+
+/**
+ * Sets up data for bee types
+ */
+void setBeeData() {
+  // 0 - babya
+  baba.carryCapacity = 2;
+  baba.evolutions[0] = 3;
+  baba.evolutions[1] = 4;
+  strcpy(baba.file, "baba");
+  beeDict[0] = &baba;
+
+  // 1 - babya
+  babb.carryCapacity = 1;
+  babb.evolutions[0] = 3;
+  babb.evolutions[1] = 5;
+  strcpy(babb.file, "babb");
+  beeDict[1] = &babb;
+
+  // 2 - puff
+  puff.carryCapacity = 5;
+  puff.evolutions[0] = 6;
+  puff.evolutions[1] = 7;
+  strcpy(puff.file, "puff");
+  beeDict[2] = &puff;
 }
 
 
@@ -106,41 +137,8 @@ void loop() {
   btnPresses();
   updateState();  
   drawCurrentState();
-  //updateFrames();
-
-  if (pressedBtns[1]) {
-    test++;
-  }
 }
 
-
-/**
- * Routes to routines for drawing the current state
- */
-void drawCurrentState() {
-  if (state == 4) {
-    drawDevState();
-  } else if (state == 2) {
-    drawBeeState();
-  }
-}
-
-/** 
- * Progresses State based on button presses and previous states 
- */
-void updateState() {  
-  int prevState = state;
-
-  if (btnstates[0] && btnstates[2]) {
-    state = 4;
-  } else {
-    state = 2;
-  }
-
-  if (state != prevState) {
-    tft.fillScreen(COLOR_BG);
-  }
-}
 
 /**
  * Draws various dev states to the screen, 
@@ -160,36 +158,142 @@ void drawDevState() {
   tft.print(bmp1[1]);
   tft.print("-");
   tft.print(bmp1[2]);
-//  198, 248,250
-  
-//  tft.setTextSize(1);
 
-  
   tft.setCursor(0,64);
-  tft.print(bmpstatus);
-//  tft.print("press:");
-//  tft.print(test);
+//  tft.println((*bee[0]).beeName);
+//  tft.println(readFileLine("bee0.txt",2));
+  tft.print("bee 0 index : ");
+  tft.print(int((*bee[0]).get_index()));
+}
+
+
+/**
+ * Routes to routines for drawing the current state
+ */
+void drawCurrentState() {
+  if (state == 0) {
+    drawDevState();
+  } else if (state == 1) {
+    drawPlantState();
+  } else if (state == 2) {
+    drawBeeState();
+  } else if (state == 3) {
+    drawAddBeeState();
+  }
+}
+
+/** 
+ * Screen to add a new bee
+ */
+void drawAddBeeState() {
+  drawArrows();
+  bmpDraw("addbee.bmp", 6, 6);
+//  tft.setCursor(0,0);
+//  tft.setTextSize(1);
+//  tft.setTextColor(COLOR_BLUE,COLOR_BG);
+//  tft.print("add bee");
+}
+
+/** 
+ * Screen to display plant
+ */
+void drawPlantState() {
+  tft.setCursor(0,0);
+  tft.setTextSize(1);
+  tft.setTextColor(COLOR_BLUE,COLOR_BG);
+  tft.print("plant");
+}
+
+/** 
+ * Progresses State based on button presses and previous states 
+ * 0 - start screen
+  * 1 - plant view
+  * 2 - bee view
+  * 3 - bee selection
+  * 4 - admin
+ */
+void updateState() {  
+  int prevState = state;
+
+  if (pressedBtns[1]) {
+    state++;
+    state = state % 4;
+  }
+
+  // cycle Bees on bee state
+  if (state == 2 || state == 3) {
+    beeManagement();
+  }
+
+  if (state != prevState) {
+    tft.fillScreen(COLOR_BG);
+  }
+}
+
+/**
+ * Handles the management of the bee screens
+ */
+void beeManagement() {
+  if (pressedBtns[0]) { onBee = onBee - 1; }
+  if (pressedBtns[2]) { onBee = onBee + 1; } 
+
+  // modulo bee cycle and switch to add state if invalid bee
+  onBee = onBee % 3;
+  if (bee[abs(onBee)]->index == -1) {
+    state = 3;
+  } else {
+    state = 2;
+  }
 }
 
 /**
  * Handles Drawing the Bee State
  */
 void drawBeeState() {
+  char fileName[10];
+  drawArrows();
+  
+  if (frame < 2) {
+    getBeeFile(0, '1').toCharArray(fileName, 10);
+  } else {
+    getBeeFile(0, '2').toCharArray(fileName, 10);
+  }
+
+  bmpDraw(fileName, 6, 6);
+  
+  //  show bee pollen
+  int xOffset = ((128 - ((bee[abs(onBee)]->maxPollen*12)-4))/2)/4;
+  for (int i=0; i<bee[abs(onBee)]->maxPollen; i++) {
+    if (bee[abs(onBee)]->heldPollen > i) {
+      bmpDraw("polf.bmp", (i*3)+xOffset, 32-4); 
+    } else {
+      bmpDraw("pole.bmp", (i*3)+xOffset, 32-4);     
+    }
+  }
+}
+
+
+/**
+ * draws arrows to the screen
+ */
+void drawArrows() {
   draw_matrix(leftArrow,1,15);
   draw_matrix(rightArrow,28,15);
-  
-//  if (frame < 1) {
-//    print_bee(get_bee(1));
-//  } else if (frame < 2) {
-//    print_bee(get_bee(2));
-//  } else {
-//    print_bee(get_bee(3));
-//  }
-  if (frame < 2) {
-    bmpDraw("puff1.bmp", 6, 6);
-  } else {
-    bmpDraw("puff2.bmp", 6, 6);
+
+  for (int i=0; i<3; i++) {
+    if (abs(onBee) == i) {
+      tft.fillRect((i*12)+4, 4, 8, 8, COLOR_DARKGREEN);  
+    } else {
+      tft.fillRect((i*12)+4, 4, 8, 8, COLOR_MIDGREEN);  
+    }
   }
+}
+
+/**
+ * Returns File name for bee file
+ */
+String getBeeFile(char beeIndex, char frame) {
+  return String(bee[beeIndex]->file) + frame + ".bmp";
 }
 
 /**
@@ -203,8 +307,27 @@ void updateFrames() {
     frame ++;
     if (frame == MAX_FRAMES) {
       frame = 0;
+      updatePollen();
     }
   }
+}
+
+/**
+ * Updates the pollen for all active bees
+ */
+void updatePollen() {
+  pollenCounter = (pollenCounter + 1) % pollenAddRate;
+
+  if (pollenCounter == 0) {
+    for (int i=0; i<3; i++) {
+      if (bee[i]->index != -1
+          && bee[i]->heldPollen < bee[i]->maxPollen) {
+        bee[i]->heldPollen++;
+      }
+    }
+  }
+
+  return;
 }
 
 /**
@@ -282,6 +405,7 @@ void draw_matrix(char *img, int x, int y) {
 // good balance.
 
 #define BUFFPIXEL 20
+
 
 void bmpDraw(char *filename, uint8_t x, uint8_t y) {
 
@@ -412,3 +536,6 @@ uint32_t read32(File f) {
   ((uint8_t *)&result)[3] = f.read(); // MSB
   return result;
 }
+
+
+
