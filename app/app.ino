@@ -47,12 +47,16 @@ Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS,  TFT_DC, TFT_RST);
 //globals
 int test = 0;
 int pollenCounter = 0;
+int playerPollen = 0;
+int showGather = 0;
 const int pollenAddRate = 4;
 
 //buttons
 const int buttonPin1 = 5;
 const int buttonPin2 = 6;
-const int buttonPin3 = 9;
+const int buttonPin3 = A0;
+
+const int screenBrightness = 9;
 
 bool canPress[3] = {true,true,true};
 bool pressedBtns[3] = {false,false,false};
@@ -60,6 +64,7 @@ bool btnstates[3];
 
 //animation
 int frame = 0;
+int prevframe = 0;
 const long FRAME_RATE = 500; 
 const int MAX_FRAMES = 4;
 unsigned long previousMillis = 0; 
@@ -88,6 +93,9 @@ void setup()
   pinMode(buttonPin2, INPUT);
   pinMode(buttonPin3, INPUT);
 
+  pinMode(screenBrightness, OUTPUT);
+  analogWrite(screenBrightness, 180); // % 255
+
   if (!SD.begin(SD_CS)) {
     bmpstatus=503;
     return;
@@ -95,7 +103,7 @@ void setup()
 
   setBeeData();
     //updateFrames();
-  bee[0] = new Bee(2);
+  bee[0] = new Bee(0);
   bee[1] = new Bee(-1);
   bee[2] = new Bee(-1);
   //  uint8_t read
@@ -107,16 +115,18 @@ void setup()
  */
 void setBeeData() {
   // 0 - babya
-  baba.carryCapacity = 2;
-  baba.evolutions[0] = 3;
-  baba.evolutions[1] = 4;
-  strcpy(baba.file, "baba");
+  baba.carryCapacity = 1;
+  baba.evolutions[0] = 2;
+  baba.evolutions[1] = 2;
+  baba.evolveThreshold = 6;
+  strcpy(baba.file, "grub");
   beeDict[0] = &baba;
 
-  // 1 - babya
-  babb.carryCapacity = 1;
+  // 1 - babyb
+  babb.carryCapacity = 2;
   babb.evolutions[0] = 3;
   babb.evolutions[1] = 5;
+  babb.evolveThreshold = 10;
   strcpy(babb.file, "babb");
   beeDict[1] = &babb;
 
@@ -124,6 +134,7 @@ void setBeeData() {
   puff.carryCapacity = 5;
   puff.evolutions[0] = 6;
   puff.evolutions[1] = 7;
+  puff.evolveThreshold = 100;
   strcpy(puff.file, "puff");
   beeDict[2] = &puff;
 }
@@ -153,17 +164,18 @@ void drawDevState() {
   tft.setCursor(0,0);
   tft.setTextSize(1);
   tft.setTextColor(COLOR_BLUE,COLOR_BG);
-  tft.print(bmp1[0]);
-  tft.print("-");
-  tft.print(bmp1[1]);
-  tft.print("-");
-  tft.print(bmp1[2]);
+  tft.print("pollen:");
+  tft.print(playerPollen);
 
   tft.setCursor(0,64);
-//  tft.println((*bee[0]).beeName);
-//  tft.println(readFileLine("bee0.txt",2));
-  tft.print("bee 0 index : ");
+
+  tft.print("bee:0 index:");
   tft.print(int((*bee[0]).get_index()));
+  tft.println("");
+  tft.print("bee:0 collected:");
+  tft.print(bee[0]->collectedPollen);
+  tft.print("/");
+  tft.print( beeDict[int((*bee[0]).get_index())]->evolveThreshold );
 }
 
 
@@ -188,10 +200,6 @@ void drawCurrentState() {
 void drawAddBeeState() {
   drawArrows();
   bmpDraw("addbee.bmp", 6, 6);
-//  tft.setCursor(0,0);
-//  tft.setTextSize(1);
-//  tft.setTextColor(COLOR_BLUE,COLOR_BG);
-//  tft.print("add bee");
 }
 
 /** 
@@ -243,6 +251,34 @@ void beeManagement() {
     state = 3;
   } else {
     state = 2;
+    checkActiveBeeEvolution();
+  }
+
+  gatherPollen();
+}
+
+void checkActiveBeeEvolution() {
+  if (bee[onBee]->collectedPollen >= beeDict[int((*bee[onBee]).get_index())]->evolveThreshold) {
+    bee[onBee]->collectedPollen = 0;
+    bee[onBee]->evolve();
+  }
+}
+
+/**
+ * Handles actions and checks for gathering pollen from bees
+ */
+void gatherPollen() {
+  if (state == 2 && pressedBtns[1] && bee[abs(onBee)]->heldPollen > 0) {
+    tft.fillRect(0, 4*8, 128, 4*16, COLOR_LIGHTPURPLE);  
+    
+    showGather = bee[abs(onBee)]->heldPollen;
+    playerPollen += showGather;
+    bee[abs(onBee)]->collectedPollen += showGather;
+    bee[abs(onBee)]->heldPollen = 0;
+  } else if (showGather > 0 && pressedBtns[1]) {
+    tft.fillRect(0, 4*8, 128, 4*16, COLOR_LIGHTGREEN);
+    
+    showGather = 0;
   }
 }
 
@@ -251,23 +287,34 @@ void beeManagement() {
  */
 void drawBeeState() {
   char fileName[10];
-  drawArrows();
   
-  if (frame < 2) {
-    getBeeFile(0, '1').toCharArray(fileName, 10);
-  } else {
-    getBeeFile(0, '2').toCharArray(fileName, 10);
-  }
-
-  bmpDraw(fileName, 6, 6);
+  if (showGather > 0) {
+    tft.setCursor(5*8,6*8);
+    tft.setTextSize(4);
+    tft.setTextColor(COLOR_DARKBLUE,COLOR_LIGHTPURPLE);
+    tft.print("+"); tft.print(showGather);
+  } else { 
+     drawArrows();
+ 
+    if (prevframe != frame) {
+      if (frame < 2) {
+        getBeeFile(0, '1').toCharArray(fileName, 10);
+      } else {
+        getBeeFile(0, '2').toCharArray(fileName, 10);
+      }
   
-  //  show bee pollen
-  int xOffset = ((128 - ((bee[abs(onBee)]->maxPollen*12)-4))/2)/4;
-  for (int i=0; i<bee[abs(onBee)]->maxPollen; i++) {
-    if (bee[abs(onBee)]->heldPollen > i) {
-      bmpDraw("polf.bmp", (i*3)+xOffset, 32-4); 
-    } else {
-      bmpDraw("pole.bmp", (i*3)+xOffset, 32-4);     
+      bmpDraw(fileName, 6, 6);
+      prevframe = frame;
+    }
+    
+    //  show bee pollen
+    int xOffset = ((128 - ((bee[abs(onBee)]->maxPollen*12)-4))/2)/4;
+    for (int i=0; i<bee[abs(onBee)]->maxPollen; i++) {
+      if (bee[abs(onBee)]->heldPollen > i) {
+        bmpDraw("polf.bmp", (i*3)+xOffset, 32-4); 
+      } else {
+        bmpDraw("pole.bmp", (i*3)+xOffset, 32-4);     
+      }
     }
   }
 }
@@ -303,7 +350,7 @@ void updateFrames() {
   unsigned long currentMillis = millis();
   if (currentMillis - previousMillis >= FRAME_RATE) {
     previousMillis = currentMillis;
-    
+
     frame ++;
     if (frame == MAX_FRAMES) {
       frame = 0;

@@ -9,6 +9,7 @@ struct BeeData {
   char file[4];
   int evolutions[2];
   int carryCapacity;
+  int evolveThreshold;
 };
 
 BeeData *beeDict[4];
@@ -23,8 +24,16 @@ class Bee {
   public:
     Bee (int);
     char get_index() {return index;}
-    void switchbee(int toIndex) {
-      
+    void evolve() {
+      index = beeDict[index]->evolutions[random(2)];
+      heldPollen = 0;  
+      collectedPollen = 0;
+      maxPollen = 0;
+    
+      if (index > -1) {
+        strcpy(file, beeDict[index]->file);
+        maxPollen = beeDict[index]->carryCapacity;
+      }
     }
     void set_bee_name(String name) {
       beeName = name;
