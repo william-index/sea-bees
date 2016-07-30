@@ -7,6 +7,7 @@ typedef struct BeeData BeeData;
 
 struct BeeData {
   char file[4];
+  char overflowSafety; // super hacky, I dont know, this saves memory from overflowing haha
   int evolutions[2];
   int carryCapacity;
   int evolveThreshold;
@@ -24,31 +25,36 @@ class Bee {
   public:
     Bee (int);
     char get_index() {return index;}
-    void evolve() {
-      index = beeDict[index]->evolutions[random(2)];
+    /**
+     * Evolves a bee randomly via one of its possible evolution paths
+     */
+    void evolve(int bIndex) {
+      if (bIndex < -1) {bIndex = -1;}
+      set_bee(bIndex);
+    }
+
+    /**
+     * Starts a bee's life anew for the bee of the given index type
+     */
+    void startBee(int beeType) {
+      set_bee(beeType);
+    }
+    void set_bee(int beeIndex) {
+      index = beeIndex;
       heldPollen = 0;  
       collectedPollen = 0;
-      maxPollen = 0;
+      maxPollen = 1;
     
       if (index > -1) {
         strcpy(file, beeDict[index]->file);
         maxPollen = beeDict[index]->carryCapacity;
+      } else {
+        strcpy(file, "eelb");
       }
-    }
-    void set_bee_name(String name) {
-      beeName = name;
     }
 };
 
 Bee::Bee (int bIndex) {
-  index = bIndex;
-  heldPollen = 0;  
-  collectedPollen = 0;
-  maxPollen = 0;
-
-  if (bIndex > -1) {
-    strcpy(file, beeDict[bIndex]->file);
-    maxPollen = beeDict[bIndex]->carryCapacity;
-  }
+  set_bee(bIndex);
 }
 

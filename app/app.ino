@@ -50,6 +50,7 @@ int pollenCounter = 0;
 int playerPollen = 0;
 int showGather = 0;
 const int pollenAddRate = 4;
+const int unlockBee2 = 5;
 
 //buttons
 const int buttonPin1 = 5;
@@ -65,7 +66,7 @@ bool btnstates[3];
 //animation
 int frame = 0;
 int prevframe = 0;
-const long FRAME_RATE = 500; 
+const long FRAME_RATE = 50;  // was 500
 const int MAX_FRAMES = 4;
 unsigned long previousMillis = 0; 
 
@@ -76,8 +77,10 @@ int bmp1[3];
 //application states
 int state = 0;
 int onBee = 0;
+bool storeCursor = true;
+bool deadBee = false;
 
-
+// bees
 Bee *bee[3];
 
 void setup()
@@ -114,27 +117,29 @@ void setup()
  * Sets up data for bee types
  */
 void setBeeData() {
+//  TODO: BUG memory seems to get corrupter here, as strcpy is greedy? Takes more than its due, 
+//        and makes reading out values impossible
   // 0 - babya
   baba.carryCapacity = 1;
   baba.evolutions[0] = 2;
   baba.evolutions[1] = 2;
-  baba.evolveThreshold = 6;
+  baba.evolveThreshold = 2;
   strcpy(baba.file, "grub");
   beeDict[0] = &baba;
 
   // 1 - babyb
   babb.carryCapacity = 2;
-  babb.evolutions[0] = 3;
-  babb.evolutions[1] = 5;
+  babb.evolutions[0] = -1;
+  babb.evolutions[1] = -1;
   babb.evolveThreshold = 10;
-  strcpy(babb.file, "babb");
+  strcpy(babb.file, "jell");
   beeDict[1] = &babb;
 
   // 2 - puff
   puff.carryCapacity = 5;
-  puff.evolutions[0] = 6;
-  puff.evolutions[1] = 7;
-  puff.evolveThreshold = 100;
+  puff.evolutions[0] = -1;
+  puff.evolutions[1] = -1;
+  puff.evolveThreshold = 5;
   strcpy(puff.file, "puff");
   beeDict[2] = &puff;
 }
@@ -157,26 +162,42 @@ void loop() {
  */
 void drawDevState() {
   
-//    bmpDraw("sambee.bmp", 0, 0);
-  
-  
-//  //  Button test output
   tft.setCursor(0,0);
   tft.setTextSize(1);
   tft.setTextColor(COLOR_BLUE,COLOR_BG);
   tft.print("pollen:");
   tft.print(playerPollen);
 
-  tft.setCursor(0,64);
+  tft.setCursor(0,44);
 
   tft.print("bee:0 index:");
-  tft.print(int((*bee[0]).get_index()));
+  tft.print(bee[onBee]->index);
   tft.println("");
   tft.print("bee:0 collected:");
   tft.print(bee[0]->collectedPollen);
   tft.print("/");
-  tft.print( beeDict[int((*bee[0]).get_index())]->evolveThreshold );
+  tft.print( beeDict[bee[onBee]->index]->evolveThreshold );
+  
+  tft.println("");
+  tft.print("random:");
+  int randn = random(2);
+  tft.print(randn);
+  tft.println("");
+  tft.print("random evo:");
+  tft.print(beeDict[bee[onBee]->index]->evolutions[randn]);
+
+  tft.println("");
+  tft.println("evos:");
+  tft.print("0:");
+  tft.println(beeDict[0]->evolutions[0]);
+  tft.print("1:");
+  tft.println(beeDict[0]->evolutions[1]);
+  tft.print("2:");
+  tft.println(beeDict[0]->evolutions[3]);
+  
 }
+
+
 
 
 /**
@@ -191,7 +212,21 @@ void drawCurrentState() {
     drawBeeState();
   } else if (state == 3) {
     drawAddBeeState();
+  } else if (state == 5) {
+    drawBeeStore();
+  } else if (state == 6) {
+    drawBeeGrave();
   }
+}
+
+/**
+ * Draws dead bee art
+ */
+void drawBeeGrave() {
+  tft.setCursor(0,0);
+  tft.setTextSize(1);
+  tft.setTextColor(COLOR_BLUE,COLOR_BG);
+  tft.print("bee died of old age");
 }
 
 /** 
@@ -219,20 +254,59 @@ void drawPlantState() {
   * 2 - bee view
   * 3 - bee selection
   * 4 - admin
+  * 5 - baby bee store
+  * 6 - dead bee
  */
 void updateState() {  
-  int prevState = state;
-
-  if (pressedBtns[1]) {
-    state++;
-    state = state % 4;
+  if (deadBee) {
+    deadBee = false;
+    changeToState(6);
   }
 
-  // cycle Bees on bee state
+  if (state == 6 && pressedBtns[1]) {
+    changeToState(3);
+    bee[abs(onBee)]->set_bee(-1);
+  }
+  
+  // Menu Display and return to plant view
+  if (btnstates[0] && pressedBtns[2]) {
+    if (state == 0) {
+      changeToState(1);
+    } else {
+      changeToState(0);
+    }
+    return;
+  }
+
+  // Entry to Bee State from plant view or force enter it
+  if(state == 1 && pressedBtns[1] || bee[abs(onBee)]->index != -1 && state == 5) {
+    changeToState(2);
+    return;
+  }
+
+  //  Enter bee store
+  if(state == 3 && pressedBtns[1]) {
+    changeToState(5);
+    return;
+  }
+
   if (state == 2 || state == 3) {
     beeManagement();
   }
 
+  if (state == 5) {
+    updateBeeStore();
+  }
+}
+
+/**
+ * Changes to new state
+ *  This method forcesa screen clear as well
+ */
+void changeToState(int toState) {
+  int prevState = state;
+  state = toState;
+  
   if (state != prevState) {
     tft.fillScreen(COLOR_BG);
   }
@@ -242,25 +316,102 @@ void updateState() {
  * Handles the management of the bee screens
  */
 void beeManagement() {
-  if (pressedBtns[0]) { onBee = onBee - 1; }
-  if (pressedBtns[2]) { onBee = onBee + 1; } 
-
-  // modulo bee cycle and switch to add state if invalid bee
-  onBee = onBee % 3;
-  if (bee[abs(onBee)]->index == -1) {
-    state = 3;
-  } else {
-    state = 2;
-    checkActiveBeeEvolution();
+  if (deadBee == false) {
+    if (pressedBtns[0] && onBee > 0) { onBee = onBee - 1; }
+    if (pressedBtns[2] && onBee < 2) { onBee = onBee + 1; } 
+    
+    if (pressedBtns[0] || pressedBtns[2]) {
+      tft.fillScreen(COLOR_BG);
+      return;
+    }
+    
+    if (bee[abs(onBee)]->index == -1 && showGather == 0) {
+      state = 3;
+    } else {
+      state = 2;
+      gatherPollen();
+      checkActiveBeeEvolution();
+    }
   }
-
-  gatherPollen();
 }
 
+/**
+ * Logic for state updating for the bee store
+ */
+void updateBeeStore() {  
+  if (pressedBtns[1]) {
+    if(!storeCursor && playerPollen > unlockBee2) {
+      bee[abs(onBee)]->startBee(1);  
+    } else {
+      bee[abs(onBee)]->startBee(0);
+    }    
+  }
+
+  
+  if (pressedBtns[0] || pressedBtns[2]) {
+    storeCursor = !storeCursor;
+  }
+}
+
+/**
+ * Draws State for bee purchase store
+ */
+void drawBeeStore() {
+  int *xPos;
+  xPos = new int[3];
+  xPos[0] = 8;
+  xPos[1] = 18;
+  
+  if (prevframe != frame) {
+    // unlock condition for second bee tree
+    if (playerPollen <= unlockBee2) { xPos[0] = 13; }
+    
+    if (frame < 2) {
+      bmpDraw("grubicn1.bmp", xPos[0], 12);
+      if (playerPollen > unlockBee2) {
+        bmpDraw("grubicn1.bmp", xPos[1], 12);
+      }
+    } else {
+      bmpDraw("grubicn2.bmp", xPos[0], 12);
+      if (playerPollen > unlockBee2) {
+        bmpDraw("grubicn2.bmp", xPos[1], 12);
+      }
+    }
+    
+    prevframe = frame;
+  }
+  
+  // draws cursor
+  if (playerPollen > unlockBee2) {
+    if (storeCursor) {
+      tft.fillRect((xPos[0]+1)*4, (12+8)*4, 5*4, 4, COLOR_DARKBLUE);
+      tft.fillRect((xPos[1]+1)*4, (12+8)*4, 5*4, 4, COLOR_BG);  
+    } else {
+      tft.fillRect((xPos[1]+1)*4, (12+8)*4, 5*4, 4, COLOR_DARKBLUE);
+      tft.fillRect((xPos[0]+1)*4, (12+8)*4, 5*4, 4, COLOR_BG);
+    }
+  }
+
+  delete [] xPos;
+}
+
+/**
+ * Checks if the active bee should evolve and if so calls its evolution method.
+ */
 void checkActiveBeeEvolution() {
-  if (bee[onBee]->collectedPollen >= beeDict[int((*bee[onBee]).get_index())]->evolveThreshold) {
+  if (bee[onBee]->collectedPollen >= beeDict[bee[onBee]->index]->evolveThreshold && bee[onBee]->index > -1) {
     bee[onBee]->collectedPollen = 0;
-    bee[onBee]->evolve();
+
+//    bee[onBee]->evolve();
+    // evolves and checks for death   
+    int bIndex = beeDict[bee[onBee]->index]->evolutions[random(2)];
+    bee[onBee]->evolve(2);
+    if (bIndex < 0){
+      deadBee = true;
+      showGather = 0;
+      bee[abs(onBee)]->collectedPollen = 0;
+      bee[abs(onBee)]->heldPollen = 0;
+    }
   }
 }
 
@@ -270,7 +421,6 @@ void checkActiveBeeEvolution() {
 void gatherPollen() {
   if (state == 2 && pressedBtns[1] && bee[abs(onBee)]->heldPollen > 0) {
     tft.fillRect(0, 4*8, 128, 4*16, COLOR_LIGHTPURPLE);  
-    
     showGather = bee[abs(onBee)]->heldPollen;
     playerPollen += showGather;
     bee[abs(onBee)]->collectedPollen += showGather;
@@ -298,9 +448,9 @@ void drawBeeState() {
  
     if (prevframe != frame) {
       if (frame < 2) {
-        getBeeFile(0, '1').toCharArray(fileName, 10);
+        getBeeFile(onBee, '1').toCharArray(fileName, 10);
       } else {
-        getBeeFile(0, '2').toCharArray(fileName, 10);
+        getBeeFile(onBee, '2').toCharArray(fileName, 10);
       }
   
       bmpDraw(fileName, 6, 6);
@@ -317,6 +467,10 @@ void drawBeeState() {
       }
     }
   }
+
+  tft.setCursor(10,100);
+  tft.setTextSize(2);
+  tft.setTextColor(COLOR_BLUE,COLOR_BG);
 }
 
 
@@ -324,8 +478,8 @@ void drawBeeState() {
  * draws arrows to the screen
  */
 void drawArrows() {
-  draw_matrix(leftArrow,1,15);
-  draw_matrix(rightArrow,28,15);
+  if (onBee != 0) { draw_matrix(leftArrow,1,15); }
+  if (onBee != 2) { draw_matrix(rightArrow,28,15); }
 
   for (int i=0; i<3; i++) {
     if (abs(onBee) == i) {
@@ -368,7 +522,8 @@ void updatePollen() {
   if (pollenCounter == 0) {
     for (int i=0; i<3; i++) {
       if (bee[i]->index != -1
-          && bee[i]->heldPollen < bee[i]->maxPollen) {
+          && bee[i]->heldPollen < bee[i]->maxPollen 
+          && showGather <= 0) {
         bee[i]->heldPollen++;
       }
     }
@@ -402,13 +557,6 @@ void btnPresses() {
     }
   }
   //  EEPROM.write(loc, val);
-}
-
-void print_bee(char *bee) {
-  int xOffset = (32 - bee[1])/2;
-  int yOffset = (32 - bee[0]/bee[1])/2;
-  draw_matrix(bee, xOffset, yOffset);
-  free(bee);
 }
 
 /**
