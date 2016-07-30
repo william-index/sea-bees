@@ -132,7 +132,7 @@ void setBeeData() {
   babb.evolutions[0] = -1;
   babb.evolutions[1] = -1;
   babb.evolveThreshold = 10;
-  strcpy(babb.file, "jell");
+  strcpy(babb.file, "worm");
   beeDict[1] = &babb;
 
   // 2 - puff
@@ -369,12 +369,12 @@ void drawBeeStore() {
     if (frame < 2) {
       bmpDraw("grubicn1.bmp", xPos[0], 12);
       if (playerPollen > unlockBee2) {
-        bmpDraw("grubicn1.bmp", xPos[1], 12);
+        bmpDraw("wormicn1.bmp", xPos[1], 12);
       }
     } else {
       bmpDraw("grubicn2.bmp", xPos[0], 12);
       if (playerPollen > unlockBee2) {
-        bmpDraw("grubicn2.bmp", xPos[1], 12);
+        bmpDraw("wormicn2.bmp", xPos[1], 12);
       }
     }
     
