@@ -51,6 +51,7 @@ int playerPollen = 0;
 int showGather = 0;
 const int pollenAddRate = 4;
 const int unlockBee2 = 5;
+const char numberChars[10] = {'0','1','2','3','4','5','6','7','8','9'};
 
 //buttons
 const int buttonPin1 = 5;
@@ -82,6 +83,10 @@ bool deadBee = false;
 
 // bees
 Bee *bee[3];
+
+// garden
+int numGardenStates = 7;
+int gardenStates[7] = {10, 25, 50, 100, 200, 500, 1000};
 
 void setup()
 {
@@ -135,13 +140,29 @@ void setBeeData() {
   strcpy(babb.file, "worm");
   beeDict[1] = &babb;
 
-  // 2 - puff
+  // 2 - prwn
+  prwn.carryCapacity = 5;
+  prwn.evolutions[0] = 3;
+  prwn.evolutions[1] = 4;
+  prwn.evolveThreshold = 5;
+  strcpy(prwn.file, "prwn");
+  beeDict[2] = &prwn;
+
+  // 3 - puff
   puff.carryCapacity = 5;
   puff.evolutions[0] = -1;
   puff.evolutions[1] = -1;
   puff.evolveThreshold = 5;
   strcpy(puff.file, "puff");
-  beeDict[2] = &puff;
+  beeDict[3] = &puff;
+
+  // 4 - eel
+  eelb.carryCapacity = 5;
+  eelb.evolutions[0] = -1;
+  eelb.evolutions[1] = -1;
+  eelb.evolveThreshold = 5;
+  strcpy(eelb.file, "eelb");
+  beeDict[4] = &eelb;
 }
 
 
@@ -223,10 +244,7 @@ void drawCurrentState() {
  * Draws dead bee art
  */
 void drawBeeGrave() {
-  tft.setCursor(0,0);
-  tft.setTextSize(1);
-  tft.setTextColor(COLOR_BLUE,COLOR_BG);
-  tft.print("bee died of old age");
+  bmpDraw("death.bmp", 6, 6); 
 }
 
 /** 
@@ -241,10 +259,55 @@ void drawAddBeeState() {
  * Screen to display plant
  */
 void drawPlantState() {
-  tft.setCursor(0,0);
-  tft.setTextSize(1);
+  int gardenCurrentState = 0;
+  
+  //  Draw garden
+  for (int i=0; i<numGardenStates; i++) {
+    if (playerPollen >= gardenStates[i]) {
+      gardenCurrentState++;
+    }
+  }
+
+  //  return String(;
+  char *gardFile = new char[9];
+  gardFile[0] = 'g';
+  gardFile[1] = 'a';
+  gardFile[2] = 'r';
+  gardFile[3] = 'd';
+  gardFile[4] = numberChars[gardenCurrentState];
+  gardFile[5] = '.';
+  gardFile[6] = 'b';
+  gardFile[7] = 'm';
+  gardFile[8] = 'p';
+  bmpDraw(gardFile, 1, 1);
+  delete [] gardFile;
+  
+  //  Pollen icon
+  bmpDraw("polf.bmp", 1, 32-5); 
+  bmpDraw("polf.bmp", 2, 32-9); 
+  bmpDraw("polf.bmp", 5, 32-6); 
+
+  //  Shows players total pollen collected
+  int xOffset = 0;
+   
+  if (playerPollen > 9999) {
+    xOffset = 4;
+    playerPollen = 9999;
+  } else if (playerPollen > 999) {
+    xOffset = 4;
+  } else if (playerPollen > 99) {
+    xOffset = 3;
+  } else if (playerPollen > 9) {
+    xOffset = 2;
+  } else {
+    xOffset = 1;
+  }
+
+  tft.setCursor(128 - (xOffset * 7 *4), 128 - (9*4));
+  
+  tft.setTextSize(4);
   tft.setTextColor(COLOR_BLUE,COLOR_BG);
-  tft.print("plant");
+  tft.print(playerPollen);
 }
 
 /** 
@@ -405,7 +468,7 @@ void checkActiveBeeEvolution() {
 //    bee[onBee]->evolve();
     // evolves and checks for death   
     int bIndex = beeDict[bee[onBee]->index]->evolutions[random(2)];
-    bee[onBee]->evolve(2);
+    bee[onBee]->evolve(bIndex);
     if (bIndex < 0){
       deadBee = true;
       showGather = 0;
@@ -426,7 +489,7 @@ void gatherPollen() {
     bee[abs(onBee)]->collectedPollen += showGather;
     bee[abs(onBee)]->heldPollen = 0;
   } else if (showGather > 0 && pressedBtns[1]) {
-    tft.fillRect(0, 4*8, 128, 4*16, COLOR_LIGHTGREEN);
+    tft.fillRect(0, 4*8, 128, 4*16, COLOR_BG);
     
     showGather = 0;
   }

@@ -13,8 +13,8 @@ struct BeeData {
   int evolveThreshold;
 };
 
-BeeData *beeDict[4];
-BeeData baba, babb, prwn, puff, aaaa, b, c, d, e, f, g, h;
+BeeData *beeDict[12];
+BeeData baba, babb, prwn, puff, eelb, b, c, d, e, f, g, h;
 
 class Bee {
   public: 
@@ -48,8 +48,6 @@ class Bee {
       if (index > -1) {
         strcpy(file, beeDict[index]->file);
         maxPollen = beeDict[index]->carryCapacity;
-      } else {
-        strcpy(file, "eelb");
       }
     }
 };
