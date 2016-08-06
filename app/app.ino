@@ -45,7 +45,7 @@ Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS,  TFT_DC, TFT_RST);
 #define arr_len( x )  ( sizeof( x ) / sizeof( *x ) )
 
 //globals
-int test = 0;
+int testSaved = 0;
 int pollenCounter = 0;
 int playerPollen = 0;
 int showGather = 0;
@@ -110,12 +110,13 @@ void setup()
   }
 
   setBeeData();
-    //updateFrames();
+  loadPreviousData();
+}
+
+void loadPreviousData() {
   bee[0] = new Bee(0);
   bee[1] = new Bee(-1);
   bee[2] = new Bee(-1);
-  //  uint8_t read
-//  test = EEPROM.read(0);
 }
 
 /**
@@ -219,14 +220,19 @@ void drawDevState() {
 }
 
 
-
+/**
+ * Draws the logo
+ */
+void drawLogoState() {
+  bmpDraw("logo.bmp", 6, 6); 
+}
 
 /**
  * Routes to routines for drawing the current state
  */
 void drawCurrentState() {
   if (state == 0) {
-    drawDevState();
+    drawLogoState();
   } else if (state == 1) {
     drawPlantState();
   } else if (state == 2) {
@@ -333,17 +339,19 @@ void updateState() {
   
   // Menu Display and return to plant view
   if (btnstates[0] && pressedBtns[2]) {
-    if (state == 0) {
-      changeToState(1);
-    } else {
-      changeToState(0);
-    }
+    changeToState(1);
     return;
   }
 
   // Entry to Bee State from plant view or force enter it
   if(state == 1 && pressedBtns[1] || bee[abs(onBee)]->index != -1 && state == 5) {
     changeToState(2);
+    return;
+  }
+
+  // enter from logo
+  if (state == 0 && pressedBtns[1]) {
+    changeToState(1);
     return;
   }
 
