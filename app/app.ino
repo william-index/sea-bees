@@ -59,6 +59,7 @@ const int buttonPin2 = 6;
 const int buttonPin3 = A0;
 
 const int screenBrightness = 9;
+bool screenOff = false;
 
 bool canPress[3] = {true,true,true};
 bool pressedBtns[3] = {false,false,false};
@@ -70,6 +71,7 @@ int prevframe = 0;
 const long FRAME_RATE = 50;  // was 500
 const int MAX_FRAMES = 4;
 unsigned long previousMillis = 0; 
+unsigned long lastPress = 0;
 
 int bmpstatus = 0;
 boolean firstbmp = false;
@@ -102,7 +104,7 @@ void setup()
   pinMode(buttonPin3, INPUT);
 
   pinMode(screenBrightness, OUTPUT);
-  analogWrite(screenBrightness, 180); // % 255
+  analogWrite(screenBrightness, 200); // % 255
 
   if (!SD.begin(SD_CS)) {
     bmpstatus=503;
@@ -174,7 +176,9 @@ void loop() {
   updateFrames();
   btnPresses();
   updateState();  
-  drawCurrentState();
+  if (!screenOff) {
+   drawCurrentState(); 
+  }
 }
 
 
@@ -327,6 +331,14 @@ void drawPlantState() {
   * 6 - dead bee
  */
 void updateState() {  
+  if (pressedBtns[0] || pressedBtns[1] || pressedBtns[2]) {
+    lastPress = millis();  
+    analogWrite(screenBrightness, 200); 
+    if (screenOff) {
+      return;
+    }
+  }
+  
   if (deadBee) {
     deadBee = false;
     changeToState(6);
@@ -581,6 +593,17 @@ void updateFrames() {
       frame = 0;
       updatePollen();
     }
+  }
+
+  //  Adjust sreen brightness to save battery
+  if (currentMillis >  30500 && currentMillis  - 30500 >= lastPress) {
+    analogWrite(screenBrightness, 0); 
+    screenOff = true;
+  } else if (currentMillis >  20000 && currentMillis  - 20000 >= lastPress) {
+    analogWrite(screenBrightness, 20); 
+    screenOff = false;
+  } else {
+    screenOff = false;
   }
 }
 
