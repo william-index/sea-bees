@@ -68,7 +68,7 @@ bool btnstates[3];
 //animation
 int frame = 0;
 int prevframe = 0;
-const long FRAME_RATE = 50;  // was 500
+const long FRAME_RATE = 100;  // was 500 higher is slower
 const int MAX_FRAMES = 4;
 unsigned long previousMillis = 0; 
 unsigned long lastPress = 0;
@@ -127,45 +127,93 @@ void loadPreviousData() {
 void setBeeData() {
 //  TODO: BUG memory seems to get corrupter here, as strcpy is greedy? Takes more than its due, 
 //        and makes reading out values impossible
-  // 0 - babya
+  // 0 - grub
   baba.carryCapacity = 1;
-  baba.evolutions[0] = 2;
+  baba.evolutions[0] = 3;
   baba.evolutions[1] = 2;
-  baba.evolveThreshold = 2;
+  baba.evolveThreshold = 4;
   strcpy(baba.file, "grub");
   beeDict[0] = &baba;
 
-  // 1 - babyb
+  // 1 - worm
   babb.carryCapacity = 2;
-  babb.evolutions[0] = -1;
-  babb.evolutions[1] = -1;
-  babb.evolveThreshold = 10;
+  babb.evolutions[0] = 5;
+  babb.evolutions[1] = 4;
+  babb.evolveThreshold = 8;
   strcpy(babb.file, "worm");
   beeDict[1] = &babb;
 
   // 2 - prwn
-  prwn.carryCapacity = 5;
-  prwn.evolutions[0] = 3;
-  prwn.evolutions[1] = 4;
-  prwn.evolveThreshold = 5;
+  prwn.carryCapacity = 4;
+  prwn.evolutions[0] = 8;
+  prwn.evolutions[1] = 9;
+  prwn.evolveThreshold = 16;
   strcpy(prwn.file, "prwn");
   beeDict[2] = &prwn;
 
   // 3 - puff
-  puff.carryCapacity = 5;
+  puff.carryCapacity = 6;
   puff.evolutions[0] = -1;
   puff.evolutions[1] = -1;
-  puff.evolveThreshold = 5;
+  puff.evolveThreshold = 32;
   strcpy(puff.file, "puff");
   beeDict[3] = &puff;
 
   // 4 - eel
-  eelb.carryCapacity = 5;
+  eelb.carryCapacity = 3;
   eelb.evolutions[0] = -1;
-  eelb.evolutions[1] = -1;
-  eelb.evolveThreshold = 5;
+  eelb.evolutions[1] = 10;
+  eelb.evolveThreshold = 9;
   strcpy(eelb.file, "eelb");
   beeDict[4] = &eelb;
+
+  // 5 - snail 
+  snal.carryCapacity = 4;
+  snal.evolutions[0] = 6;
+  snal.evolutions[1] = 7;
+  snal.evolveThreshold = 16;
+  strcpy(snal.file, "snal");
+  beeDict[5] = &snal;
+
+  // 6 - jell 
+  jell.carryCapacity = 5;
+  jell.evolutions[0] = -1;
+  jell.evolutions[1] = -1;
+  jell.evolveThreshold = 40;
+  strcpy(jell.file, "jell");
+  beeDict[6] = &jell;
+
+  // 7 - ammonite
+  ammo.carryCapacity = 7;
+  ammo.evolutions[0] = -1;
+  ammo.evolutions[1] = -1;
+  ammo.evolveThreshold = 45;
+  strcpy(ammo.file, "ammo");
+  beeDict[7] = &ammo;
+
+  // 8 - ray
+  raay.carryCapacity = 4;
+  raay.evolutions[0] = -1;
+  raay.evolutions[1] = -1;
+  raay.evolveThreshold = 22;
+  strcpy(raay.file, "raay");
+  beeDict[8] = &raay;
+
+  // 9 - lobster
+  lobs.carryCapacity = 5;
+  lobs.evolutions[0] = -1;
+  lobs.evolutions[1] = -1;
+  lobs.evolveThreshold = 45;
+  strcpy(lobs.file, "lobs");
+  beeDict[9] = &lobs;
+
+  // 10 - dragon
+  drag.carryCapacity = 8;
+  drag.evolutions[0] = -1;
+  drag.evolutions[1] = -1;
+  drag.evolveThreshold = 100;
+  strcpy(drag.file, "drag");
+  beeDict[10] = &drag;
 }
 
 
@@ -228,7 +276,7 @@ void drawDevState() {
  * Draws the logo
  */
 void drawLogoState() {
-  bmpDraw("logo.bmp", 6, 6); 
+  bmpDraw("logo.bmp", 0, 0); 
 }
 
 /**

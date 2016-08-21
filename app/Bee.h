@@ -13,8 +13,8 @@ struct BeeData {
   int evolveThreshold;
 };
 
-BeeData *beeDict[12];
-BeeData baba, babb, prwn, puff, eelb, b, c, d, e, f, g, h;
+BeeData *beeDict[11];
+BeeData baba, babb, prwn, puff, eelb, snal, jell, ammo, raay, lobs, drag;
 
 class Bee {
   public: 
